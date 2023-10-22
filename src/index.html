@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spooky Eyes Tracker</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
+</head>
+
+<body>
+
+<canvas id="canvas" width="640" height="480"></canvas>
+<video id="video" width="640" height="480" style="display:none;"></video>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('video');
+
+    let lastX, lastY;
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+
+            video.onloadedmetadata = () => {
+                video.onplay = () => {
+                    trackMotion()
+                    requestAnimationFrame(draw);
+                };
+            }
+
+            video.play();
+        });
+
+    function draw() {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(draw);
+    }
+
+    function trackMotion() {
+        const tracker = new tracking.ColorTracker(['magenta', 'cyan', 'yellow']);
+        tracker.setMinDimension(5);
+
+        tracking.track(video, tracker, { camera: true });
+
+        tracker.on('track', event => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (video.paused || video.ended) return;
+
+            if (event.data.length === 0) {
+                drawEyes(lastX, lastY);
+            } else {
+                let x = 0;
+                let y = 0;
+                event.data.forEach(rect => {
+                    x += rect.x + rect.width / 2;
+                    y += rect.y + rect.height / 2;
+                });
+
+                x /= event.data.length;
+                y /= event.data.length;
+                lastX = x;
+                lastY = y;
+                drawEyes(x, y);
+            }
+        });
+
+        // ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // if (video.paused || video.ended) return;
+            
+        // // Mirroring the video feed
+        // ctx.globalAlpha = 0.2;
+        // ctx.translate(canvas.width, 0);
+        // ctx.scale(-1, 1);
+        // ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // // Reset the transformations if needed
+        // ctx.setTransform(1, 0, 0, 1, 0, 0);
+        // ctx.globalAlpha = 1.0;
+
+        // let currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // if (lastImageData) {
+        //     let motionX = 0;
+        //     let motionY = 0;
+        //     let count = 0;
+
+        //     for (let i = 0; i < currentImageData.data.length; i += 4) {
+        //         let difference =
+        //             Math.abs(currentImageData.data[i] - lastImageData.data[i]) +
+        //             Math.abs(currentImageData.data[i + 1] - lastImageData.data[i + 1]) +
+        //             Math.abs(currentImageData.data[i + 2] - lastImageData.data[i + 2]);
+
+        //         if (difference > 50) {
+        //             const x = (i / 4) % canvas.width;
+        //             const y = Math.floor((i / 4) / canvas.width);
+        //             motionX += x;
+        //             motionY += y;
+        //             count++;
+        //         }
+        //     }
+
+        //     if (count > 1000) {
+        //         const avgX = motionX / count;
+        //         const avgY = motionY / count;
+
+        //         drawEyes(avgX, avgY);
+        //     } else {
+        //         drawEyes(lastX, lastY);
+        //     }
+        // }
+
+        // lastImageData = currentImageData;
+        // requestAnimationFrame(draw);
+    }
+
+    // For now, two white circles with moving pupils
+    function drawEyes(x, y) {
+        eyeDiameter = 100
+        pupilDiameter = 20
+
+        whiteX = canvas.width / 2;
+        whiteY = canvas.height / 2;
+
+        // Figure out relative offset from center (-50 to +50)
+        percentX = ((100 * x) / canvas.width) - 50
+        percentY = ((100 * y) / canvas.height) - 50
+
+        ctx.fillStyle = "white"
+        ctx.arc(whiteX - eyeDiameter, whiteY, eyeDiameter, 0, 2 * Math.PI);
+        ctx.arc(whiteX + eyeDiameter, whiteY, eyeDiameter, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.closePath();
+        
+        ctx.beginPath();
+        ctx.fillStyle = "black";
+        range = eyeDiameter / 50;
+        ctx.arc(whiteX + (percentX * range) - eyeDiameter, whiteY + (percentY * range), pupilDiameter, 0, 2 * Math.PI);
+        ctx.arc(whiteX + (percentX * range) + eyeDiameter, whiteY + (percentY * range), pupilDiameter, 0, 2 * Math.PI);
+
+        ctx.fill();
+        ctx.closePath()
+    }
+</script>
+
+</body>
+</html>
